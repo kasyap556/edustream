@@ -39,3 +39,44 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pm2 logs
+/logs
+
+# user uploaded files — don't commit to version control
+/public/uploads
+
+# ── Build and debug logs ────────────────────────────────────────────────────────
+*.log
+*.log.*
+build_*.txt
+build_*.log
+compile.log
+debug-output.txt
+lint-report*.json
+lint_output*.txt
+lint_results*.txt
+test-firebase-output.txt
+
+# ── Sensitive / private files ── NEVER commit these ────────────────────────────
+private-key-raw.txt
+extract-key.js
+test-env.js
+
+# ── Legacy SQL / migration files ────────────────────────────────────────────────
+*.sql
+
+# ── Old docs and backup files ───────────────────────────────────────────────────
+*.bak
+APPWRITE_SETUP.md
+CRITICAL_FIXES.md
+DEBUG_REPORT.md
+DEBUG_SUMMARY.md
+FIREBASE_MIGRATION.md
+FIREBASE_SETUP.md
+FIXES_APPLIED.md
+MIGRATION_COMPLETE.md
+PROJECT_ANALYSIS.md
+REGISTRATION_FIX.md
+SHARE_MEETING_DOCS.md
+

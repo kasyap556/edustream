@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: edustream
+    runtime: node
+    region: singapore   # closest region to India
+    plan: free          # change to starter/standard for production
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    healthCheckPath: /api/auth/session
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromEnv: PORT      # Render sets PORT automatically
+      # Add these from your .env.local in the Render dashboard:
+      # NEXTAUTH_URL, NEXTAUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+      # FIREBASE_SERVICE_ACCOUNT_KEY, METERED_API_KEY (if using TURN)
