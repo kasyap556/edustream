@@ -30,6 +30,9 @@ export const useRecording = ({
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const animFrameRef = useRef<number | null>(null);
+    // Refs for canvas and video elements so they can be cleaned up on stop
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const videoElsRef = useRef<HTMLVideoElement[]>([]);
     // Keep a snapshot of peer streams captured at start time
     const peerStreamsRef = useRef<MediaStream[]>(peerStreams);
 
@@ -43,6 +46,7 @@ export const useRecording = ({
         const canvas = document.createElement('canvas');
         canvas.width = 1280;
         canvas.height = 720;
+        canvasRef.current = canvas;  // store for cleanup
         const ctx = canvas.getContext('2d')!;
 
         // Build video element per stream (already running, so just assign srcObject)
@@ -59,6 +63,7 @@ export const useRecording = ({
             v.play().catch(() => {/* ignore */ });
             return v;
         });
+        videoElsRef.current = videoEls;  // store for cleanup
 
         // Animated draw loop – simple CSS-grid-style layout
         const draw = () => {
@@ -122,8 +127,14 @@ export const useRecording = ({
         };
 
         recorder.onstop = () => {
-            // Clean up video elements
-            videoEls.forEach(v => { v.srcObject = null; });
+            // Clean up video elements and release GPU memory
+            videoElsRef.current.forEach(v => { v.srcObject = null; });
+            videoElsRef.current = [];
+            if (canvasRef.current) {
+                canvasRef.current.width = 0;
+                canvasRef.current.height = 0;
+                canvasRef.current = null;
+            }
 
             const blob = new Blob(chunksRef.current, { type: mimeType });
             const url = URL.createObjectURL(blob);

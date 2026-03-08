@@ -15,6 +15,8 @@ function LobbyContent() {
     const searchParams = useSearchParams();
     const roomId = searchParams?.get('roomId') || '';
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    // Ref tracks the live stream so the cleanup closure (captured once) always stops the right tracks
+    const localStreamRef = useRef<MediaStream | null>(null);
     const [isMicOn, setIsMicOn] = useState(true);
     const [isCamOn, setIsCamOn] = useState(true);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -32,18 +34,6 @@ function LobbyContent() {
             router.push('/');
         }
     }, [status, roomId, router]);
-
-    // Show a clean spinner while session is resolving
-    if (status === 'loading') {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-background">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                    <p className="text-muted-foreground text-sm">Loading your session…</p>
-                </div>
-            </div>
-        );
-    }
 
 
     // Sync display name when NextAuth session hydrates after mount
@@ -76,6 +66,7 @@ function LobbyContent() {
                 }
 
                 // Set the stream immediately
+                localStreamRef.current = stream;  // keep ref for cleanup
                 setLocalStream(stream);
 
                 if (videoRef.current) {
@@ -132,10 +123,9 @@ function LobbyContent() {
 
         return () => {
             mounted = false;
-            // Cleanup on unmount
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
+            // Use ref — avoids stale closure that captured null on first render
+            localStreamRef.current?.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -170,10 +160,10 @@ function LobbyContent() {
                 }
 
                 // Stop old stream
-                const currentStream = localStream;
-                if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+                localStreamRef.current?.getTracks().forEach(track => track.stop());
 
                 // Set new stream
+                localStreamRef.current = newStream;  // update ref before state
                 setLocalStream(newStream);
 
                 if (videoRef.current) {
@@ -224,6 +214,18 @@ function LobbyContent() {
             setIsCamOn(newState);
         }
     };
+
+    // ── Show a loading spinner AFTER all hooks — early return before hooks violates Rules of Hooks
+    if (status === 'loading') {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-background">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-muted-foreground text-sm">Loading your session…</p>
+                </div>
+            </div>
+        );
+    }
 
     const handleJoin = () => {
         // Pass state to the room via query params or context (simplified here)

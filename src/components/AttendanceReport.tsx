@@ -67,88 +67,53 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
     };
 
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 200,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
-        }}>
-            <div style={{
-                background: 'linear-gradient(135deg, #1e1e2e 0%, #16162a 100%)',
-                border: '1px solid rgba(167,139,250,0.25)',
-                borderRadius: 20,
-                padding: '32px',
-                width: '100%',
-                maxWidth: 560,
-                maxHeight: '85vh',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 20,
-                boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
-            }}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 backdrop-blur-sm">
+            <div className="bg-gradient-to-br from-[#1e1e2e] to-[#16162a] border border-purple-400/25 rounded-2xl p-8 w-full max-w-[560px] max-h-[85vh] flex flex-col gap-5 shadow-[0_25px_60px_rgba(0,0,0,0.5)]">
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div className="flex items-start justify-between">
                     <div>
-                        <h2 style={{
-                            margin: 0, fontSize: 22, fontWeight: 800,
-                            background: 'linear-gradient(90deg, #a78bfa, #60a5fa)',
-                            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                        }}>
+                        <h2 className="m-0 text-[22px] font-extrabold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                             📋 Meeting Summary
                         </h2>
-                        <p style={{ margin: '4px 0 0', color: '#6b7280', fontSize: 13 }}>
-                            Room: <span style={{ color: '#9ca3af', fontFamily: 'monospace' }}>{roomId}</span>
+                        <p className="mt-1 text-muted-foreground text-[13px]">
+                            Room: <span className="text-gray-400 font-mono">{roomId}</span>
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        style={{
-                            background: 'rgba(255,255,255,0.06)', border: 'none',
-                            color: '#9ca3af', cursor: 'pointer', borderRadius: 8,
-                            width: 32, height: 32, fontSize: 16, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                        }}
+                        className="bg-white/5 border-none text-gray-400 cursor-pointer rounded-lg w-8 h-8 text-base flex items-center justify-center hover:bg-white/10 hover:text-white transition-colors"
                     >✕</button>
                 </div>
 
                 {/* Stats row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                <div className="grid grid-cols-3 gap-3">
                     {[
                         { label: 'Duration', value: formatDuration(meetingDuration), icon: '⏱' },
                         { label: 'Participants', value: String(attendees.length), icon: '👥' },
                         { label: 'Date', value: new Date(meetingStartedAt).toLocaleDateString(), icon: '📅' },
                     ].map(stat => (
-                        <div key={stat.label} style={{
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid rgba(255,255,255,0.07)',
-                            borderRadius: 12, padding: '14px 16px', textAlign: 'center',
-                        }}>
-                            <div style={{ fontSize: 22 }}>{stat.icon}</div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: '#e5e7eb', marginTop: 4 }}>{stat.value}</div>
-                            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{stat.label}</div>
+                        <div key={stat.label} className="bg-white/5 border border-white/10 rounded-xl p-3.5 text-center">
+                            <div className="text-[22px]">{stat.icon}</div>
+                            <div className="text-lg font-bold text-gray-200 mt-1">{stat.value}</div>
+                            <div className="text-[11px] text-gray-500 mt-0.5">{stat.label}</div>
                         </div>
                     ))}
                 </div>
 
                 {/* Time row */}
-                <div style={{
-                    display: 'flex', gap: 12,
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    borderRadius: 10, padding: '10px 16px',
-                    fontSize: 13, color: '#9ca3af',
-                }}>
-                    <span>🟢 Started: <strong style={{ color: '#e5e7eb' }}>{formatTime(meetingStartedAt)}</strong></span>
-                    <span style={{ color: '#374151' }}>|</span>
-                    <span>🔴 Ended: <strong style={{ color: '#e5e7eb' }}>{formatTime(meetingEndedAt)}</strong></span>
+                <div className="flex gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[13px] text-gray-400">
+                    <span>🟢 Started: <strong className="text-gray-200">{formatTime(meetingStartedAt)}</strong></span>
+                    <span className="text-gray-700">|</span>
+                    <span>🔴 Ended: <strong className="text-gray-200">{formatTime(meetingEndedAt)}</strong></span>
                 </div>
 
                 {/* Attendee list */}
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <h3 style={{ margin: 0, fontSize: 13, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>
+                <div className="flex-1 overflow-y-auto flex flex-col gap-2">
+                    <h3 className="m-0 text-[13px] text-gray-500 uppercase tracking-widest">
                         Participants ({attendees.length})
                     </h3>
                     {attendees.length === 0 ? (
-                        <div style={{ textAlign: 'center', color: '#4b5563', padding: '20px 0', fontSize: 14 }}>
+                        <div className="text-center text-gray-600 py-5 text-sm">
                             No participants recorded.
                         </div>
                     ) : (
@@ -157,32 +122,20 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                             const dur = formatDuration(left - a.joinedAt);
                             const initials = a.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
                             return (
-                                <div key={i} style={{
-                                    display: 'flex', alignItems: 'center', gap: 12,
-                                    background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.06)',
-                                    borderRadius: 10, padding: '10px 14px',
-                                }}>
-                                    <div style={{
-                                        width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                                        background: 'linear-gradient(135deg, #7c3aed, #2563eb)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: 13, fontWeight: 700, color: '#fff',
-                                    }}>{initials}</div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600, fontSize: 14, color: '#e5e7eb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5">
+                                    <div className="w-9 h-9 rounded-full shrink-0 bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-[13px] font-bold text-white">
+                                        {initials}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-semibold text-sm text-gray-200 whitespace-nowrap overflow-hidden text-ellipsis">
                                             {a.name}
                                         </div>
-                                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                                        <div className="text-[11px] text-gray-500 mt-0.5">
                                             Joined {formatTime(a.joinedAt)}
                                             {a.leftAt ? ` · Left ${formatTime(a.leftAt)}` : ' · Still in meeting'}
                                         </div>
                                     </div>
-                                    <div style={{
-                                        fontSize: 12, color: '#a78bfa', fontWeight: 600,
-                                        background: 'rgba(167,139,250,0.1)', padding: '3px 10px', borderRadius: 20,
-                                        flexShrink: 0,
-                                    }}>
+                                    <div className="text-xs text-purple-400 font-semibold bg-purple-400/10 px-2.5 py-1 rounded-full shrink-0">
                                         {dur}
                                     </div>
                                 </div>
@@ -192,25 +145,16 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="flex gap-2.5">
                     <button
                         onClick={handleDownload}
-                        style={{
-                            flex: 1, padding: '11px 0', borderRadius: 10, border: 'none',
-                            background: 'linear-gradient(135deg, #7c3aed, #2563eb)',
-                            color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                        }}
+                        className="flex-1 py-2.5 rounded-xl border-none bg-gradient-to-br from-purple-600 to-blue-600 text-white font-bold text-sm cursor-pointer hover:opacity-90 transition-opacity"
                     >
                         ⬇ Download Report
                     </button>
                     <button
                         onClick={onClose}
-                        style={{
-                            flex: 1, padding: '11px 0', borderRadius: 10,
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: '#9ca3af', fontWeight: 600, fontSize: 14, cursor: 'pointer',
-                        }}
+                        className="flex-1 py-2.5 rounded-xl border border-white/10 bg-white/5 text-gray-400 font-semibold text-sm cursor-pointer hover:bg-white/10 hover:text-white transition-colors"
                     >
                         Close
                     </button>

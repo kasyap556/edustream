@@ -171,6 +171,28 @@ export const useWebRTC = (
                 updatePeers([...peersRef.current, { peerId: newPeerId, userName: newUserName, peer }]);
             };
 
+            // ── I just joined → server tells me who's already in the room ──────
+            // This is the mirror of handleUserConnected: existing users initiate
+            // offers TO me via user-connected, and I initiate offers TO them via
+            // existing-peers. Without this, a reconnecting client would be stranded.
+            const handleExistingPeers = (existingPeers: Array<{ peerId: string; userName: string }>) => {
+                console.log('[WebRTC] 📋 existing-peers:', existingPeers.map(p => p.peerId));
+                existingPeers.forEach(({ peerId: existingPeerId, userName: existingUserName }) => {
+                    if (peersRef.current.find(p => p.peerId === existingPeerId)) {
+                        console.log('[WebRTC] Already have peer, skipping:', existingPeerId);
+                        return;
+                    }
+                    const peer = makePeer(true, existingPeerId);
+                    peer.on('signal', (signal: SignalData) => {
+                        console.log('[WebRTC] → offer/candidate to existing peer:', existingPeerId,
+                            (signal as any).type || 'candidate');
+                        socket.emit('offer', signal, roomId, existingPeerId, myPeerId);
+                    });
+                    updatePeers([...peersRef.current, { peerId: existingPeerId, userName: existingUserName, peer }]);
+                });
+            };
+
+
             // ── Incoming offer / trickle ICE ───────────────────────────────────
             const handleOffer = (signal: SignalData, fromPeerId: string, targetId: string) => {
                 if (targetId !== myPeerId) return;
@@ -218,11 +240,13 @@ export const useWebRTC = (
 
             // ── Register all listeners (named refs = safe to off() exactly) ────
             socket.off('user-connected', handleUserConnected);
+            socket.off('existing-peers', handleExistingPeers);
             socket.off('offer', handleOffer);
             socket.off('answer', handleAnswer);
             socket.off('user-disconnected', handleUserDisconnected);
 
             socket.on('user-connected', handleUserConnected);
+            socket.on('existing-peers', handleExistingPeers);
             socket.on('offer', handleOffer);
             socket.on('answer', handleAnswer);
             socket.on('user-disconnected', handleUserDisconnected);
@@ -230,6 +254,7 @@ export const useWebRTC = (
             // Save exact handlers for precise cleanup
             cleanupHandlers.current = () => {
                 socket.off('user-connected', handleUserConnected);
+                socket.off('existing-peers', handleExistingPeers);
                 socket.off('offer', handleOffer);
                 socket.off('answer', handleAnswer);
                 socket.off('user-disconnected', handleUserDisconnected);

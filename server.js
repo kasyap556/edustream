@@ -26,6 +26,10 @@ app.prepare().then(() => {
             origin: '*',
             methods: ['GET', 'POST'],
         },
+        // Increase timeouts to survive Next.js HMR pauses and slow compilations
+        pingTimeout: 60000,   // 60 s before declaring dead  (default: 20 s)
+        pingInterval: 25000,  // heartbeat every 25 s         (default: 25 s)
+        transports: ['websocket', 'polling'],
     });
 
     // roomId → Map<socketId, { userId, name, joinedAt }>
@@ -47,6 +51,20 @@ app.prepare().then(() => {
             if (room.has(socket.id)) {
                 console.log(`[Socket] Evicting stale entry for ${socket.id} before re-join`);
                 room.delete(socket.id);
+            }
+
+            // ── Send the new joiner the list of everyone already in the room ──────
+            // This is critical: without this, if user A is already in the room and
+            // user B joins, A gets 'user-connected' and creates an offer. But if B's
+            // socket reconnected (HMR, network blip), B never learns A is there and
+            // waits silently forever.
+            const existingPeers = [];
+            room.forEach((peerData, peerId) => {
+                existingPeers.push({ peerId, userName: peerData.name });
+            });
+            if (existingPeers.length > 0) {
+                console.log(`[Socket] Sending existing peers to ${socket.id}:`, existingPeers.map(p => p.peerId));
+                socket.emit('existing-peers', existingPeers);
             }
 
             room.set(socket.id, { userId, name: userName, joinedAt: Date.now() });

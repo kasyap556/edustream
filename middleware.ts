@@ -17,9 +17,8 @@ export default auth((req) => {
         return NextResponse.redirect(new URL('/login', req.nextUrl));
     }
 
-    // Teacher-only routes: /teacher, /create-meeting, /schedule
     const teacherRoutes = ['/teacher', '/create-meeting', '/schedule'];
-    if (teacherRoutes.some((r) => path.startsWith(r))) {
+    if (teacherRoutes.some((r) => path === r || path.startsWith(`${r}/`))) {
         if (!['teacher', 'admin'].includes(role ?? '')) {
             return NextResponse.redirect(new URL(
                 role === 'pending' ? '/pending' : '/?error=teacher_only',
@@ -29,7 +28,7 @@ export default auth((req) => {
     }
 
     // Admin panel — requires role='admin'
-    if (path.startsWith('/admin')) {
+    if (path === '/admin' || path.startsWith('/admin/')) {
         if (role !== 'admin') {
             return NextResponse.redirect(new URL('/?error=admin_only', req.nextUrl));
         }

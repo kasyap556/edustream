@@ -18,28 +18,7 @@ import { useRecording } from '@/hooks/useRecording';
 import { VideoTile } from '@/components/VideoTile';
 import { Whiteboard } from '@/components/Whiteboard';
 import { AttendanceReport, AttendeeRecord } from '@/components/AttendanceReport';
-
-interface Participant {
-    id: string;
-    name: string;
-    isMuted: boolean;
-    isCamOff: boolean;
-    isHandRaised: boolean;
-    stream?: MediaStream;
-}
-
-interface ChatMessage {
-    id: string;
-    sender: string;
-    text: string;
-    timestamp: number;
-    file?: {
-        url: string;
-        name: string;
-        type: string;
-        size: number;
-    };
-}
+import { SidebarView, ChatMessage, Participant } from '@/components/SidebarView';
 
 export default function RoomPage() {
     const params = useParams();
@@ -80,11 +59,7 @@ export default function RoomPage() {
 
     // Chat State
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
     const chatScrollRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // WebRTC identity — must be STABLE after first set to avoid re-triggering
     // the WebRTC effect (which would destroy all peers mid-handshake).
@@ -234,34 +209,35 @@ export default function RoomPage() {
     }, [socket, router]);
 
     // ─── Initialize Local Stream ────────────────────────────────────────────────
+    const initStream = React.useCallback(async () => {
+        try {
+            const audioId = searchParams?.get('audioId');
+            const videoId = searchParams?.get('videoId');
+            const currentDevices = await navigator.mediaDevices.enumerateDevices();
+            const audioExists = audioId ? currentDevices.some(d => d.deviceId === audioId && d.kind === 'audioinput') : false;
+            const videoExists = videoId ? currentDevices.some(d => d.deviceId === videoId && d.kind === 'videoinput') : false;
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: audioId && audioExists ? { deviceId: { ideal: audioId } } : true,
+                video: videoId && videoExists ? { deviceId: { ideal: videoId }, width: 1280, height: 720 } : true,
+            });
+            stream.getAudioTracks().forEach(t => (t.enabled = isMicOn));
+            stream.getVideoTracks().forEach(t => (t.enabled = isCamOn));
+            localStreamRef.current = stream;   // keep ref for cleanup
+            setLocalStream(stream);
+            setStreamError(null);
+        } catch (err) {
+            console.error('[Room] Failed to get media stream:', err);
+            const msg = err instanceof DOMException
+                ? err.name === 'NotAllowedError' ? 'Camera/microphone permission denied. You will not be visible to others.'
+                    : err.name === 'NotFoundError' ? 'No camera or microphone found.'
+                        : `Media error: ${err.message}`
+                : 'Failed to access camera/microphone.';
+            setStreamError(msg);
+        }
+    }, [isMicOn, isCamOn, searchParams]);
+
     useEffect(() => {
-        const init = async () => {
-            try {
-                const audioId = searchParams?.get('audioId');
-                const videoId = searchParams?.get('videoId');
-                const currentDevices = await navigator.mediaDevices.enumerateDevices();
-                const audioExists = audioId ? currentDevices.some(d => d.deviceId === audioId && d.kind === 'audioinput') : false;
-                const videoExists = videoId ? currentDevices.some(d => d.deviceId === videoId && d.kind === 'videoinput') : false;
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: audioId && audioExists ? { deviceId: { ideal: audioId } } : true,
-                    video: videoId && videoExists ? { deviceId: { ideal: videoId }, width: 1280, height: 720 } : true,
-                });
-                stream.getAudioTracks().forEach(t => (t.enabled = isMicOn));
-                stream.getVideoTracks().forEach(t => (t.enabled = isCamOn));
-                localStreamRef.current = stream;   // keep ref for cleanup
-                setLocalStream(stream);
-                setStreamError(null);
-            } catch (err) {
-                console.error('[Room] Failed to get media stream:', err);
-                const msg = err instanceof DOMException
-                    ? err.name === 'NotAllowedError' ? 'Camera/microphone permission denied. You will not be visible to others.'
-                        : err.name === 'NotFoundError' ? 'No camera or microphone found.'
-                            : `Media error: ${err.message}`
-                    : 'Failed to access camera/microphone.';
-                setStreamError(msg);
-            }
-        };
-        init();
+        initStream();
         // Use ref for cleanup — avoids stale closure capturing null on first render
         return () => {
             localStreamRef.current?.getTracks().forEach(t => t.stop());
@@ -374,62 +350,6 @@ export default function RoomPage() {
         // Teacher will receive meeting-ended back via socket listener
     };
 
-    // ─── Chat ────────────────────────────────────────────────────────────────────
-    const handleSendMessage = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newMessage.trim() || !socket) return;
-        const msg: ChatMessage = {
-            id: Date.now().toString(),
-            sender: userName,
-            text: newMessage,
-            timestamp: Date.now(),
-        };
-        socket.emit('send-message', roomId, msg);
-        setChatMessages(prev => [...prev, msg]);
-        setNewMessage('');
-        setTimeout(() => {
-            if (chatScrollRef.current)
-                chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-        }, 100);
-    };
-
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !socket) return;
-        setUploadError(null);
-        setIsUploading(true);
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || 'Upload failed');
-            }
-            const { url, name, type, size } = await res.json();
-            const fileMsg: ChatMessage = {
-                id: Date.now().toString(),
-                sender: userName,
-                text: '',
-                timestamp: Date.now(),
-                file: { url, name, type, size },
-            };
-            socket.emit('share-file', roomId, fileMsg);
-            setChatMessages(prev => [...prev, fileMsg]);
-            setTimeout(() => {
-                if (chatScrollRef.current)
-                    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-            }, 100);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Upload failed';
-            setUploadError(message);
-            setTimeout(() => setUploadError(null), 4000);
-        } finally {
-            setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-        }
-    };
-
     // ─── Derived ─────────────────────────────────────────────────────────────────
     const pinnedParticipant = participants.find(p => p.id === pinnedParticipantId);
     const otherParticipants = pinnedParticipantId
@@ -443,7 +363,7 @@ export default function RoomPage() {
                 <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-red-950/90 border border-red-500/60 text-red-200 text-sm font-medium px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md max-w-lg text-center">
                     <BsCameraVideoOff className="text-red-400 flex-shrink-0 text-lg" />
                     <span>{streamError}</span>
-                    <button onClick={() => window.location.reload()} className="ml-2 underline underline-offset-2 hover:text-white whitespace-nowrap">Retry</button>
+                    <button onClick={initStream} className="ml-2 underline underline-offset-2 hover:text-white whitespace-nowrap">Retry</button>
                 </div>
             )}
 
@@ -552,126 +472,19 @@ export default function RoomPage() {
                 </div>
 
                 {/* Sidebar (Chat / Participants) */}
-                <div className={`${styles.sidebar} ${!activeSidebar ? styles.sidebarHidden : ''}`}>
-
-                    {/* Sidebar Header */}
-                    <div className={styles.sidebarHeader}>
-                        <span>{activeSidebar === 'chat' ? 'In-Call Messages' : `Participants (${participants.length})`}</span>
-                        <Button variant="ghost" size="icon" onClick={() => setActiveSidebar(null)}>✕</Button>
-                    </div>
-
-                    {/* Sidebar Content */}
-                    <div className={styles.sidebarContent}>
-                        {activeSidebar === 'chat' ? (
-                            <div className="flex flex-col h-full">
-                                <div className="flex-1 space-y-4 overflow-y-auto" ref={chatScrollRef}>
-                                    {chatMessages.length === 0 && (
-                                        <div className="text-center text-muted-foreground mt-10 text-sm">
-                                            No messages yet.
-                                        </div>
-                                    )}
-                                    {chatMessages.map(msg => (
-                                        <div key={msg.id} className="flex flex-col gap-1">
-                                            <div className="flex justify-between items-baseline">
-                                                <span className="font-bold text-sm">{msg.sender}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </div>
-                                            {msg.file ? (
-                                                <a
-                                                    href={msg.file.url}
-                                                    download={msg.file.name}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-3 bg-secondary/50 hover:bg-secondary/80 transition-colors p-3 rounded-lg border border-border/40 group"
-                                                >
-                                                    <div className="text-2xl flex-shrink-0">
-                                                        {msg.file.type === 'application/pdf'
-                                                            ? <BsFilePdf className="text-red-400" />
-                                                            : <BsFileEarmarkPpt className="text-orange-400" />}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium truncate">{msg.file.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{(msg.file.size / 1024).toFixed(0)} KB</p>
-                                                    </div>
-                                                    <BsDownload className="text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
-                                                </a>
-                                            ) : (
-                                                <div className="bg-secondary/50 p-2 rounded-lg text-sm">{msg.text}</div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {participants.map(p => (
-                                    <div key={p.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold">
-                                                {p.name.slice(0, 2).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <span className="font-medium text-sm">{p.name}</span>
-                                                {p.id === 'local' && (
-                                                    <span className="ml-1 text-xs text-primary">
-                                                        {isTeacher ? '· Teacher' : '· You'}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2 text-muted-foreground">
-                                            {p.isMuted && <BsMicMute size={14} />}
-                                            {p.isHandRaised && <span title="Hand raised">✋</span>}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Chat Input */}
-                    {activeSidebar === 'chat' && (
-                        <form onSubmit={handleSendMessage} className={styles.chatInputArea}>
-                            {uploadError && (
-                                <div className="mb-2 px-2 py-1 bg-red-500/10 border border-red-500/40 rounded text-xs text-red-400">
-                                    {uploadError}
-                                </div>
-                            )}
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".pdf,.ppt,.pptx,application/pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                                className="hidden"
-                                onChange={handleFileSelect}
-                            />
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    title="Share PDF or PowerPoint"
-                                    disabled={isUploading}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg border border-border/50 hover:bg-white/5 transition-colors disabled:opacity-50"
-                                >
-                                    {isUploading
-                                        ? <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                        : <BsPaperclip className="text-muted-foreground" />}
-                                </button>
-                                <Input
-                                    placeholder="Type a message..."
-                                    value={newMessage}
-                                    onChange={e => setNewMessage(e.target.value)}
-                                    className="bg-background/50"
-                                />
-                                <Button type="submit" size="icon" variant="primary" disabled={!newMessage.trim()}>
-                                    <BsSend className="text-sm" />
-                                </Button>
-                            </div>
-                        </form>
-                    )}
-
-                </div>
+                <SidebarView
+                    roomId={roomId}
+                    userName={userName}
+                    socket={socket}
+                    activeSidebar={activeSidebar}
+                    setActiveSidebar={setActiveSidebar}
+                    participants={participants}
+                    chatMessages={chatMessages}
+                    setChatMessages={setChatMessages}
+                    chatScrollRef={chatScrollRef}
+                    isTeacher={isTeacher}
+                    styles={styles}
+                />
 
             </div>
         </>
