@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { HiOutlineAcademicCap } from 'react-icons/hi';
 import {
     BsCalendar3, BsClock, BsCameraVideo, BsPeopleFill,
-    BsArrowLeft, BsPersonCircle, BsHourglassSplit,
+    BsArrowLeft, BsPersonCircle, BsHourglassSplit, BsXCircle,
 } from 'react-icons/bs';
 
 interface MeetingInfo {
@@ -27,23 +27,27 @@ function formatDateTime(iso: string) {
     });
 }
 
-function useCountdown(iso: string) {
-    const [diff, setDiff] = useState(new Date(iso).getTime() - Date.now());
+type MeetingStatus = 'upcoming' | 'live' | 'over';
 
+function useMeetingStatus(scheduledAt: string, durationMins: number): { status: MeetingStatus; countdown: { days: number; hrs: number; mins: number; secs: number } | null } {
+    const startMs = new Date(scheduledAt).getTime();
+    const endMs = startMs + durationMins * 60 * 1000;
+
+    const [now, setNow] = useState(Date.now());
     useEffect(() => {
-        const tick = setInterval(() => {
-            setDiff(new Date(iso).getTime() - Date.now());
-        }, 1000);
+        const tick = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(tick);
-    }, [iso]);
+    }, []);
 
-    if (diff <= 0) return null; // meeting time has passed
+    if (now >= endMs) return { status: 'over', countdown: null };
+    if (now >= startMs) return { status: 'live', countdown: null };
 
+    const diff = startMs - now;
     const days = Math.floor(diff / 86400000);
     const hrs = Math.floor((diff % 86400000) / 3600000);
     const mins = Math.floor((diff % 3600000) / 60000);
     const secs = Math.floor((diff % 60000) / 1000);
-    return { days, hrs, mins, secs };
+    return { status: 'upcoming', countdown: { days, hrs, mins, secs } };
 }
 
 function CountdownBox({ label, value }: { label: string; value: number }) {
@@ -59,14 +63,15 @@ function CountdownBox({ label, value }: { label: string; value: number }) {
     );
 }
 
-// Wrapper so countdown hook is always called (avoids conditional hook violation)
+// Wrapper so status hook is always called (avoids conditional hook violation)
 function MeetingCard({ meeting, authStatus, onJoin }: {
     meeting: MeetingInfo;
     authStatus: string;
     onJoin: () => void;
 }) {
-    const countdown = useCountdown(meeting.scheduledAt);
-    const isMeetingTime = !countdown;
+    const { status, countdown } = useMeetingStatus(meeting.scheduledAt, meeting.duration);
+    const isOver = status === 'over';
+    const isLive = status === 'live';
 
     return (
         <div className="glass-panel rounded-3xl border border-border/50 shadow-2xl overflow-hidden">
@@ -113,55 +118,83 @@ function MeetingCard({ meeting, authStatus, onJoin }: {
                     </div>
                 </div>
 
-                {/* Countdown or Live badge */}
-                {countdown ? (
-                    <div className="flex flex-col items-center gap-5 py-4">
-                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                            <BsHourglassSplit className="text-primary animate-pulse" />
-                            <span>Meeting starts in</span>
+                {/* Status Section */}
+                {isOver ? (
+                    /* ── CLASS OVER ── */
+                    <div className="flex flex-col items-center gap-4 py-6">
+                        <div className="w-16 h-16 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                            <BsXCircle className="text-3xl text-red-400" />
                         </div>
-                        <div className="flex items-center gap-3 sm:gap-5">
-                            {countdown.days > 0 && <CountdownBox label="Days" value={countdown.days} />}
-                            <CountdownBox label="Hours" value={countdown.hrs} />
-                            <CountdownBox label="Mins" value={countdown.mins} />
-                            <CountdownBox label="Secs" value={countdown.secs} />
+                        <div className="text-center">
+                            <p className="text-lg font-bold text-foreground">This Class Has Ended</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                This session concluded at{' '}
+                                <span className="text-foreground font-medium">
+                                    {new Date(new Date(meeting.scheduledAt).getTime() + meeting.duration * 60000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            </p>
                         </div>
+                        {/* Disabled join button */}
+                        <div className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-lg bg-white/5 border border-border/30 text-muted-foreground cursor-not-allowed select-none">
+                            <BsCameraVideo className="text-xl opacity-40" />
+                            Class Ended
+                        </div>
+                    </div>
+                ) : isLive ? (
+                    /* ── LIVE ── */
+                    <div className="flex flex-col items-center gap-6 py-2">
+                        <div className="flex items-center justify-center gap-3">
+                            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-green-500/20 border border-green-500/40 text-green-400 font-semibold text-sm animate-pulse">
+                                <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_#22c55e]" />
+                                Class is Live Now!
+                            </span>
+                        </div>
+                        <button
+                            onClick={onJoin}
+                            className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90 text-white hover:scale-[1.02]"
+                        >
+                            <BsCameraVideo className="text-xl" />
+                            {authStatus === 'unauthenticated' ? 'Sign in to Join' : 'Join Meeting Now'}
+                        </button>
+                        {authStatus === 'unauthenticated' && (
+                            <p className="text-center text-xs text-muted-foreground -mt-4">
+                                You need to be signed in to join this class.
+                            </p>
+                        )}
                     </div>
                 ) : (
-                    <div className="flex items-center justify-center gap-3 py-4">
-                        <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-green-500/20 border border-green-500/40 text-green-400 font-semibold text-sm animate-pulse">
-                            <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_#22c55e]" />
-                            Meeting is Live!
-                        </span>
+                    /* ── UPCOMING ── */
+                    <div className="flex flex-col items-center gap-6 py-2">
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                <BsHourglassSplit className="text-primary animate-pulse" />
+                                <span>Class starts in</span>
+                            </div>
+                            <div className="flex items-center gap-3 sm:gap-5">
+                                {countdown!.days > 0 && <CountdownBox label="Days" value={countdown!.days} />}
+                                <CountdownBox label="Hours" value={countdown!.hrs} />
+                                <CountdownBox label="Mins" value={countdown!.mins} />
+                                <CountdownBox label="Secs" value={countdown!.secs} />
+                            </div>
+                        </div>
+                        <button
+                            onClick={onJoin}
+                            className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white hover:scale-[1.02]"
+                        >
+                            <BsCameraVideo className="text-xl" />
+                            {authStatus === 'unauthenticated' ? 'Sign in to Join' : 'Enter Lobby Early'}
+                        </button>
+                        {authStatus === 'unauthenticated' && (
+                            <p className="text-center text-xs text-muted-foreground -mt-4">
+                                You need to be signed in to join this class.
+                            </p>
+                        )}
+                        {authStatus === 'authenticated' && (
+                            <p className="text-center text-xs text-muted-foreground -mt-4">
+                                You can enter the lobby early and wait for the teacher to start.
+                            </p>
+                        )}
                     </div>
-                )}
-
-                {/* Join Button */}
-                <button
-                    onClick={onJoin}
-                    className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${isMeetingTime
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90 text-white scale-100 hover:scale-[1.02]'
-                            : 'bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white scale-100 hover:scale-[1.02]'
-                        }`}
-                >
-                    <BsCameraVideo className="text-xl" />
-                    {authStatus === 'unauthenticated'
-                        ? 'Sign in to Join'
-                        : isMeetingTime
-                            ? 'Join Meeting Now'
-                            : 'Enter Lobby'}
-                </button>
-
-                {authStatus === 'unauthenticated' && (
-                    <p className="text-center text-xs text-muted-foreground">
-                        You need to be signed in to join this class.
-                    </p>
-                )}
-
-                {!isMeetingTime && countdown && authStatus === 'authenticated' && (
-                    <p className="text-center text-xs text-muted-foreground">
-                        You can enter the lobby now and wait for the teacher to start the session.
-                    </p>
                 )}
 
             </div>
