@@ -133,8 +133,9 @@ export default function ScheduleClient({ initialMeetings }: { initialMeetings: S
         }
     };
 
-    const copyLink = async (roomId: string, id: string) => {
-        const link = `${window.location.origin}/lobby?roomId=${roomId}`;
+    const copyLink = async (_roomId: string, id: string) => {
+        // Link points to the scheduled meeting info page, not directly to the lobby
+        const link = `${window.location.origin}/meeting/${id}`;
         await navigator.clipboard.writeText(link);
         setCopiedId(id);
         setTimeout(() => setCopiedId(null), 2000);
