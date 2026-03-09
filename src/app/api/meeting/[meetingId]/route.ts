@@ -5,9 +5,9 @@ import { initializeFirebaseAdmin } from '@/lib/firebase-admin';
 // Public endpoint — no auth required so any student with the link can view meeting info
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { meetingId: string } }
+    { params }: { params: Promise<{ meetingId: string }> }
 ) {
-    const { meetingId } = params;
+    const { meetingId } = await params;
     if (!meetingId) {
         return NextResponse.json({ error: 'Missing meetingId' }, { status: 400 });
     }
