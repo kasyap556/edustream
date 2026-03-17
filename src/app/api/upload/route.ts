@@ -23,10 +23,20 @@ export async function POST(req: NextRequest) {
             'application/pdf',
             'application/vnd.ms-powerpoint',
             'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/plain',
+            'application/zip',
+            'image/jpeg',
+            'image/png',
+            'image/gif',
+            'image/webp',
         ];
         if (!allowedTypes.includes(file.type)) {
             return NextResponse.json(
-                { message: 'Only PDF and PowerPoint files are allowed' },
+                { message: 'File type not allowed. Supported: PDF, PPT, Word, Excel, images, text, zip' },
                 { status: 400 }
             );
         }

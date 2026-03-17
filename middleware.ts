@@ -10,7 +10,7 @@ export default auth((req) => {
     const path = req.nextUrl.pathname;
 
     // All protected routes require login
-    const authRequired = ['/lobby', '/room', '/schedule', '/create-meeting', '/teacher', '/admin', '/pending'];
+    const authRequired = ['/lobby', '/room', '/schedule', '/create-meeting', '/teacher', '/admin', '/pending', '/groups'];
     const needsAuth = authRequired.some((r) => path.startsWith(r));
 
     if (needsAuth && !isLoggedIn) {
@@ -38,5 +38,5 @@ export default auth((req) => {
 });
 
 export const config = {
-    matcher: ["/room/:path*", "/lobby", "/schedule", "/create-meeting", "/teacher/:path*", "/admin/:path*", "/pending"],
+    matcher: ["/room/:path*", "/lobby", "/schedule", "/create-meeting", "/teacher/:path*", "/admin/:path*", "/pending", "/groups/:path*", "/groups"],
 };

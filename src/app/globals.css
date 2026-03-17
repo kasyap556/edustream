@@ -585,3 +585,60 @@ h6 {
 * {
   scroll-behavior: smooth;
 }
+
+/* ── Groups / Chat Specific ─────────────────────────────── */
+
+/* Message area - hide scrollbar but allow scroll */
+#messages-container {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
+/* Glassmorphism panel deep */
+.glass-panel-deep {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Emoji-style role badge */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Image preview in file messages */
+.file-image-preview {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 0.75rem;
+  object-fit: cover;
+}
+
+/* Line clamp utility */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+/* White/alpha utilities needed by groups */
+.bg-white\/8 {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Whitespace pre-wrap for message text */
+.whitespace-pre-wrap {
+  white-space: pre-wrap;
+}
+
+.break-words {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}

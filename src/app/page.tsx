@@ -8,7 +8,7 @@ import {
   BsCameraVideo, BsKeyboard, BsCalendar3, BsPersonBadge,
   BsShieldCheck, BsPeopleFill, BsClockHistory, BsLightningChargeFill,
   BsArrowRight, BsBoxArrowRight, BsBell, BsGrid1X2Fill,
-  BsPlay, BsLink45Deg, BsChevronRight,
+  BsPlay, BsLink45Deg, BsChevronRight, BsChatDots,
 } from 'react-icons/bs';
 import { HiOutlineAcademicCap } from 'react-icons/hi';
 import { useRouter } from 'next/navigation';
@@ -243,6 +243,7 @@ export default function Home() {
         <nav className="flex flex-col gap-1 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 mb-1">Menu</p>
           <SideLink icon={<BsGrid1X2Fill />} label="Dashboard" active activeClass={theme.sidebarActive} />
+          <SideLink icon={<BsChatDots />} label="Groups" onClick={() => router.push('/groups')} />
           <SideLink icon={<BsCameraVideo />} label="Create Meeting" onClick={() => router.push('/create-meeting')} locked={!canTeach} />
           <SideLink icon={<BsCalendar3 />} label="Schedule" onClick={() => router.push('/schedule')} locked={!canTeach} />
           {canTeach && (
