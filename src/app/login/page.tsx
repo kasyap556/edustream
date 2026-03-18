@@ -72,7 +72,7 @@ export default function LoginPage() {
     e.preventDefault();
     if (!selectedRole && status !== 'authenticated') return;
 
-    const role = selectedRole;
+    const role = selectedRole || 'student';
     if (role === 'student' && !admissionNo.trim()) {
       setError('Admission number is required for students.');
       return;
@@ -94,7 +94,7 @@ export default function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          role: role || 'student',
+          role,
           admissionNo: role === 'student' ? admissionNo : undefined,
           teacherIdNo: role === 'teacher' ? teacherIdNo : undefined,
           college,

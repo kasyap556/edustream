@@ -161,13 +161,13 @@ export default function GroupsPage() {
         const data = await res.json();
         const latestMsgs: Message[] = data.messages || [];
         setMessages(prev => {
-          // Only update if there are new messages
-          if (latestMsgs.length > 0 && prev.length > 0) {
-            const lastId = prev[prev.length - 1]?.id;
-            const hasNew = latestMsgs.some(m => m.id !== lastId && new Date(m.createdAt) > new Date(prev[prev.length - 1].createdAt));
-            return hasNew ? latestMsgs : prev;
-          }
-          return latestMsgs.length > 0 ? latestMsgs : prev;
+          if (latestMsgs.length === 0) return prev;
+          // Deduplicate by ID — merge prev + new, keep unique by id
+          const existingIds = new Set(prev.map(m => m.id));
+          const truly_new = latestMsgs.filter(m => !existingIds.has(m.id));
+          if (truly_new.length === 0) return prev;
+          // Replace with full latest set (already ordered correctly from server)
+          return latestMsgs;
         });
       } catch { }
     }, 5000);
@@ -201,7 +201,11 @@ export default function GroupsPage() {
       });
       const data = await res.json();
       if (data.message) {
-        setMessages(prev => [...prev, data.message]);
+        setMessages(prev => {
+          // Avoid duplicate if polling already added it
+          if (prev.some(m => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
         // Update group last message
         setGroups(prev => prev.map(g =>
           g.id === activeGroup.id ? { ...g, lastMessage: text, lastMessageAt: new Date().toISOString() } : g
@@ -437,7 +441,7 @@ export default function GroupsPage() {
               ) : (
                 messages.map((msg, i) => (
                   <MessageBubble
-                    key={msg.id || i}
+                    key={msg.id ? `msg-${msg.id}` : `msg-idx-${i}`}
                     message={msg}
                     isOwn={msg.senderEmail === session?.user?.email}
                   />
